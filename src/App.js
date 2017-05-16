@@ -9,7 +9,9 @@ class App extends Component {
         super();
         this.state = {
           value: '95758',
-          legislators: []
+          legislators: [],
+          lat: 0,
+          long: 0
         };
 
         this.handleChange = this.handleChange.bind(this);
@@ -26,11 +28,11 @@ class App extends Component {
         event.preventDefault();
         console.log('submitted');
         if (this.state.value.length === 5) {
-            this.getLegislators()
+            this.getLegislatorsByZip()
         }
     }
 
-    getLegislators() {
+    getLegislatorsByZip() {
         request(`https://congress.api.sunlightfoundation.com/legislators/locate?zip=${this.state.value}&per_page=50&callback=`).end((err, data) => {
             console.log(data);
             this.setState({
@@ -39,17 +41,47 @@ class App extends Component {
         })
     }
 
+    getLegislatorsByLatLong(lat, long) {
+        request(`https://congress.api.sunlightfoundation.com/legislators/locate?latitude=${lat}&longitude=${long}&per_page=50&callback=`).end((err, data) => {
+            console.log(data);
+            this.setState({
+              legislators: data.body.results,
+              loading: false
+            })
+        })
+    }
+
     componentWillMount() {
+      this.setState({
+        loading: true
+      })
+      navigator.geolocation.getCurrentPosition(pos => {
+        this.getLegislatorsByLatLong(pos.coords.latitude, pos.coords.longitude)
+      })
     }
 
     renderLegislators() {
       if (this.state.legislators) {
         return this.state.legislators.map((legislator, i) => {
           return(
-              <div className="col m6 s12">
+              <div className="col m4 s12">
                   <Legislator person={legislator} key={i}/>
                 </div>)
         })
+      }
+    }
+
+    renderLoading() {
+      if (this.state.loading) {
+        return (
+          <div className="spinner">
+            <div className="rect1"></div>
+            <div className="rect2"></div>
+            <div className="rect3"></div>
+            <div className="rect4"></div>
+            <div className="rect5"></div>
+          </div>
+        )
       }
     }
 
@@ -58,14 +90,15 @@ class App extends Component {
         <div className="App">
           <div className="row">
             <form onSubmit={this.handleSubmit}>
-              <div className="input-field col s6">
+              <div className="input-field col s7">
+
                 <input type="text" value={this.state.value} onChange={this.handleChange} id="zip"/>
                 <label htmlFor="zip">
                   Zip Code:
                 </label>
-
+                *Zip Code inputs may not accurately represent district lines. Enable location detection for accurate results.
               </div>
-              <div className="input-field col s6">
+              <div className="input-field col s3">
                 <button className="btn btn-large waves-effect waves-light" type="submit" name="action">
                   Search
                 </button>
@@ -74,6 +107,7 @@ class App extends Component {
           </div>
           <div className="row">
             {this.renderLegislators()}
+            {this.renderLoading()}
           </div>
         </div>
       );
